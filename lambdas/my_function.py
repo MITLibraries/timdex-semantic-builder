@@ -1,33 +1,25 @@
 import json
 import logging
-import os
 
-import sentry_sdk
-from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
+from lambdas.config import Config, configure_logger, configure_sentry
 
+# ---------------------------------------
+# One-time, Lambda cold start setup
+# ---------------------------------------
+CONFIG = Config()
+
+root_logger = logging.getLogger()
+log_config_message = configure_logger(root_logger)
 logger = logging.getLogger(__name__)
-logger.setLevel(logging.DEBUG)
+logger.info(log_config_message)
 
-env = os.getenv("WORKSPACE")
-if sentry_dsn := os.getenv("SENTRY_DSN"):
-    sentry = sentry_sdk.init(
-        dsn=sentry_dsn,
-        environment=env,
-        integrations=[
-            AwsLambdaIntegration(),
-        ],
-        traces_sample_rate=1.0,
-    )
-    logger.info("Sentry DSN found, exceptions will be sent to Sentry with env=%s", env)
-else:
-    logger.info("No Sentry DSN found, exceptions will not be sent to Sentry")
+configure_sentry()
 
 
-def lambda_handler(event: dict) -> str:
-    if not os.getenv("WORKSPACE"):
-        unset_workspace_error_message = "Required env variable WORKSPACE is not set"
-        raise RuntimeError(unset_workspace_error_message)
-
+# ---------------------------------------
+# Lambda handler entrypoint
+# ---------------------------------------
+def lambda_handler(event: dict, lambda_context: dict) -> str:
     logger.debug(json.dumps(event))
-
+    logger.info("LaLambda context: %s", lambda_context)
     return "You have successfully called this lambda!"

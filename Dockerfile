@@ -1,12 +1,19 @@
-FROM public.ecr.aws/lambda/python:3.12
+# ---- Build stage ----
+FROM public.ecr.aws/lambda/python:3.14 AS builder
 
-# Copy function code
+COPY --from=ghcr.io/astral-sh/uv:0.10.7 /uv /uvx /bin/
+
+COPY pyproject.toml uv.lock ${LAMBDA_TASK_ROOT}/
+
+RUN cd ${LAMBDA_TASK_ROOT} && \
+  uv export --format requirements-txt --no-hashes --no-dev > requirements.txt && \
+  uv pip install -r requirements.txt --target "${LAMBDA_TASK_ROOT}" --no-cache --system
+
 COPY . ${LAMBDA_TASK_ROOT}/
 
-# Install dependencies
-RUN pip3 install pipenv
-RUN pipenv requirements > requirements.txt
-RUN pip3 install -r requirements.txt --target "${LAMBDA_TASK_ROOT}"
+# ---- Runtime stage ----
+FROM public.ecr.aws/lambda/python:3.14
 
-# Default handler. See README for how to override to a different handler.
-CMD [ "lambdas.my_function.lambda_handler" ]
+COPY --from=builder ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
+
+CMD ["lambdas.my_function.lambda_handler"]

@@ -137,3 +137,7 @@ dmypy.json
 
 # jetbrains
 .idea/
+
+# SAM
+.aws-sam/
+tests/sam/env.json

@@ -154,3 +154,18 @@ output/
 
 # MacOS files
 .DS_Store
+
+# AWS SAM build artifacts
+.aws-sam/
+
+.github
+
+
+.venv/
+.git/
+__pycache__/
+*.pyc
+.pytest_cache/
+tests/
+.env
+.mypy_cache/
