@@ -15,7 +15,7 @@ help: # Preview Makefile commands
 /^[-_[:alpha:]]+:.?*#/ { printf "  %-15s%s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 # ensure OS binaries aren't called if naming conflict with Make recipes
-.PHONY: help venv install update test coveralls lint black mypy ruff safety lint-apply black-apply ruff-apply check-arch dist-dev publish-dev update-lambda-dev docker-clean
+.PHONY: help venv install update test coveralls lint mypy ruff safety lint-apply ruff-apply console check-arch dist-dev publish-dev update-lambda-dev docker-clean
 
 ##############################################
 # Python Environment and Dependency commands
@@ -50,30 +50,20 @@ coveralls: test # Write coverage data to an LCOV report
 	uv run coverage lcov -o ./coverage/lcov.info
 
 ####################################
-# Code quality and safety commands
+# Code linting and formatting
 ####################################
 
-lint: black mypy ruff # Run linters
-
-black: # Run 'black' linter and print a preview of suggested changes
-	uv run black --check --diff .
-
-mypy: # Run 'mypy' linter
+lint: # Run linters
+	uv run ruff format --diff
 	uv run mypy .
-
-ruff: # Run 'ruff' linter and print a preview of errors
 	uv run ruff check .
 
-safety: # Check for security vulnerabilities
-	uv run pip-audit
-
-lint-apply: black-apply ruff-apply # Apply changes with 'black' and resolve 'fixable errors' with 'ruff'
-
-black-apply: # Apply changes with 'black'
-	uv run black .
-
-ruff-apply: # Resolve 'fixable errors' with 'ruff'
+lint-fix: # Run linting, auto fix behaviors where supported
+	uv run ruff format .
 	uv run ruff check --fix .
+
+security: # Check for security vulnerabilities
+	uv run pip-audit
 
 ####################################
 # SAM Lambda
@@ -88,6 +78,12 @@ sam-http-ping: # Send curl command to SAM HTTP server
 	curl --location 'http://localhost:3000/myapp' \
 	--header 'Content-Type: application/json' \
 	--data '{"msg":"in a bottle"}'
+####################################
+# Convenience commands
+####################################
+console: # Start a Python REPL with the project environment loaded
+	echo "'exit' to quit console"
+	uv run ipython
 
 ####################################
 # Deployment to ECR

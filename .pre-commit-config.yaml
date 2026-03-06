@@ -1,5 +1,7 @@
 default_language_version:
   python: python3.14 # set for project python version
+default_stages:
+  - pre-push
 repos:
   - repo: local
     hooks:
@@ -22,8 +24,3 @@ repos:
         language: system
         pass_filenames: true
         types: ["python"]
-      # - id: pip-audit
-      #   name: pip-audit
-      #   entry: uv run pip-audit
-      #   language: system
-      #   pass_filenames: false
