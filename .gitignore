@@ -141,3 +141,6 @@ dmypy.json
 # SAM
 .aws-sam/
 tests/sam/env.json
+
+# For multi-arch deploys
+.arch_tag
