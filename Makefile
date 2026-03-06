@@ -15,7 +15,7 @@ help: # Preview Makefile commands
 /^[-_[:alpha:]]+:.?*#/ { printf "  %-15s%s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 # ensure OS binaries aren't called if naming conflict with Make recipes
-.PHONY: help venv install update test coveralls lint mypy ruff safety lint-apply ruff-apply console check-arch dist-dev publish-dev update-lambda-dev docker-clean
+.PHONY: help venv install update test coveralls lint lint-fix security sam-build sam-invoke console check-arch dist-dev publish-dev update-lambda-dev docker-clean
 
 ##############################################
 # Python Environment and Dependency commands
@@ -68,16 +68,12 @@ security: # Check for security vulnerabilities
 ####################################
 # SAM Lambda
 ####################################
-sam-build: # Build SAM image for running Lambda locally
-	sam build --template tests/sam/template.yaml
+sam-build: # Build Docker image for running Lambda locally
+	sam build --template tests/sam/template.yaml --debug
 
-sam-http-run: # Run lambda locally as an HTTP server
-	sam local start-api --template tests/sam/template.yaml --env-vars tests/sam/env.json
+sam-invoke: # Invoke lambda locally with tests/sam/event.json
+	sam local invoke Tokenizer --template tests/sam/template.yaml --env-vars tests/sam/env.json --event tests/sam/event.json
 
-sam-http-ping: # Send curl command to SAM HTTP server
-	curl --location 'http://localhost:3000/myapp' \
-	--header 'Content-Type: application/json' \
-	--data '{"msg":"in a bottle"}'
 ####################################
 # Convenience commands
 ####################################
