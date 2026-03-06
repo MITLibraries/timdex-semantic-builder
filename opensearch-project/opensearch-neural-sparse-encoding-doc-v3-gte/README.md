@@ -1,6 +1,6 @@
 # OpenSearch Tokenizer files
 
-The files in this directory are are sourced from a model hosted on [Huggingface](https://huggingface.co/opensearch-project/opensearch-neural-sparse-encoding-doc-v3-gte/tree/main).
+The files in this directory are sourced from a model hosted on [Huggingface](https://huggingface.co/opensearch-project/opensearch-neural-sparse-encoding-doc-v3-gte/tree/main).
 
 This is the license and copyright statement supplied with the files.
 
