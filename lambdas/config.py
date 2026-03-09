@@ -3,7 +3,7 @@ import os
 
 import sentry_sdk
 
-# Load .env file for local development only
+# Load .env file. Generally only used in local dev as we exclude from git and docker
 from dotenv import load_dotenv
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
 

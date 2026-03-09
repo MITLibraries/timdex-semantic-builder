@@ -163,15 +163,17 @@ Response:
 
 ## Environment Variables
 
+In local development, you can add a `.env` file to manage these. The file is excluded from git and docker builds via
+ignore files.
+
 ### Required
 
 ```shell
-SENTRY_DSN=### If set to a valid Sentry DSN, enables Sentry exception monitoring. This is not needed for local development.
 WORKSPACE=### Set to `dev` for local development, this will be set to `stage` and `prod` in those environments by Terraform.
 ```
 
 ### Optional
 
 ```shell
-<OPTIONAL_ENV>=### Description for optional environment variable
+SENTRY_DSN=### If set to a valid Sentry DSN, enables Sentry exception monitoring. This is not needed for local development.
 ```
