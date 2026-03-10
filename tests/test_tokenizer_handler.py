@@ -7,9 +7,8 @@ from lambdas import tokenizer_handler
 
 @pytest.fixture
 def mock_query_tokenizer():
-    with patch("lambdas.tokenizer_handler.QueryTokenizer") as mock_cls:
-        mock_instance = MagicMock()
-        mock_cls.return_value = mock_instance
+    mock_instance = MagicMock()
+    with patch.object(tokenizer_handler, "_get_tokenizer", return_value=mock_instance):
         yield mock_instance
 
 

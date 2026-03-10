@@ -1,6 +1,7 @@
 import json
 import logging
 import time
+from functools import lru_cache
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -22,6 +23,13 @@ logger.info(log_config_message)
 configure_sentry()
 
 
+@lru_cache(maxsize=1)
+def _get_tokenizer() -> QueryTokenizer:
+    """Return the module-level QueryTokenizer, created once and cached."""
+    logger.info("Initializing QueryTokenizer (cold start)")
+    return QueryTokenizer()
+
+
 # ---------------------------------------
 # Lambda handler entrypoint
 # ---------------------------------------
@@ -33,8 +41,7 @@ def lambda_handler(event: dict, lambda_context: Context) -> dict:
     logger.debug("Received event: %s", event)
     logger.debug("Lambda context: %s", lambda_context)
 
-    # Initialize once (reuse for multiple queries)
-    query_tokenizer = QueryTokenizer()
+    query_tokenizer = _get_tokenizer()
 
     # Generate query tokens
     query = event.get("query", "")

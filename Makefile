@@ -82,7 +82,7 @@ sam-invoke: # Invoke lambda locally with tests/sam/event.json
 # Convenience commands
 ####################################
 console: # Start a Python REPL with the project environment loaded
-	echo "'exit' to quit console"
+	@echo "'exit' to quit console"
 	uv run ipython
 
 ####################################
