@@ -122,7 +122,7 @@ publish-dev: dist-dev ## Build, tag and push (intended for developer-based manua
     docker image prune -f --filter "dangling=true"
 
 ## If this is a Lambda repo, uncomment the two lines below
-update-lambda-dev: ## Updates the lambda with whatever is the most recent image in the ecr (intended for developer-based manual update)
+update-lambda-dev: check-arch ## Updates the lambda with whatever is the most recent image in the ecr (intended for developer-based manual update)
 	@ARCH_TAG=$$(cat .arch_tag); \
 	aws lambda update-function-code \
 		--region us-east-1 \
