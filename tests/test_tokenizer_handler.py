@@ -26,7 +26,7 @@ def test_opensearch_query_contains_rank_features(mock_query_tokenizer):
     should_clauses = result["query"]["bool"]["should"]
     assert len(should_clauses) == 1
     assert should_clauses[0]["rank_feature"]["field"] == "embedding_full_record.hello"
-    assert should_clauses[0]["rank_feature"]["boost"] == 1.5
+    assert should_clauses[0]["rank_feature"]["boost"] == pytest.approx(1.5)
 
 
 def test_returns_no_query_provided_for_empty_query(mock_query_tokenizer):
