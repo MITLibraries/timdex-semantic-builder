@@ -1,4 +1,3 @@
-import json
 import logging
 import time
 from functools import lru_cache
@@ -54,9 +53,6 @@ def lambda_handler(event: dict, lambda_context: Context) -> dict:
     query_tokens = query_tokenizer.tokenize_query(query)
     end = time.perf_counter()
     logger.debug("Tokenization and IDF weighting took: %.4f seconds", end - start)
-
-    logger.debug("Query tokens for OpenSearch:")
-    logger.debug(json.dumps(query_tokens, indent=2))
 
     # Build OpenSearch query
     return {
