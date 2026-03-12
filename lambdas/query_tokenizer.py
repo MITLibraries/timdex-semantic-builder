@@ -3,7 +3,7 @@ import logging
 from typing import TYPE_CHECKING, cast
 
 if TYPE_CHECKING:
-    import os
+    from os import PathLike
 
 import torch
 from transformers import AutoTokenizer
@@ -31,7 +31,7 @@ class QueryTokenizer:
         idf_path = tokenizer_path + "/idf.json"
         self.idf = self._load_idf(idf_path)
 
-    def _load_idf(self, idf_path: str | os.PathLike[str]) -> torch.Tensor:
+    def _load_idf(self, idf_path: str | PathLike[str]) -> torch.Tensor:
         """Load IDF weights from a local JSON file into a vocabulary-sized tensor.
 
         IDF (Inverse Document Frequency) weights down-score tokens that appear
