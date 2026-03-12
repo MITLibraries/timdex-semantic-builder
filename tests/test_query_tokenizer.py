@@ -96,3 +96,36 @@ def test_tokenize_query_excludes_tokens_not_in_idf(query_tokenizer):
     result = query_tokenizer.tokenize_query("hello unknown")
     assert "hello" in result
     assert "unknown" not in result
+
+
+def test_init_raises_filenotfounderror_when_tokenizer_path_missing():
+    """Test that FileNotFoundError is raised when tokenizer_path doesn't exist."""
+    with (
+        patch("pathlib.Path.exists", return_value=False),
+        pytest.raises(FileNotFoundError, match="Tokenizer path not found"),
+    ):
+        QueryTokenizer()
+
+
+def test_init_raises_filenotfounderror_with_correct_path_message():
+    """Test that FileNotFoundError message includes the missing path."""
+    missing_path = "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-gte"
+    with patch("pathlib.Path.exists", return_value=False):
+        with pytest.raises(FileNotFoundError) as exc_info:
+            QueryTokenizer()
+        assert missing_path in str(exc_info.value)
+
+
+def test_load_idf_raises_filenotfounderror_when_idf_file_missing():
+    """Test that FileNotFoundError is raised when IDF file doesn't exist."""
+    mock_tokenizer = make_mock_tokenizer()
+    with (
+        patch(
+            "lambdas.query_tokenizer.AutoTokenizer.from_pretrained",
+            return_value=mock_tokenizer,
+        ),
+        patch("pathlib.Path.exists", return_value=True),
+        patch("builtins.open", side_effect=FileNotFoundError()),
+        pytest.raises(FileNotFoundError),
+    ):
+        QueryTokenizer()

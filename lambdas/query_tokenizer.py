@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from os import PathLike
 
+from pathlib import Path
+
 import torch
 from transformers import AutoTokenizer
 
@@ -25,6 +27,14 @@ class QueryTokenizer:
         # Model: opensearch-neural-sparse-encoding-doc-v3-gte, stored in the repo
         # to avoid network calls at Lambda cold start
         tokenizer_path = "opensearch-project/opensearch-neural-sparse-encoding-doc-v3-gte"
+
+        # Ensure tokenizer_path exists. This avoids a situation in which the AutoTokenizer
+        # will download the model from Hugging Face if it doesn't find the local files.
+        # We want to always use our local files or error if they don't exist.
+        if not Path(tokenizer_path).exists():
+            msg = f"Tokenizer path not found: {tokenizer_path}"
+            raise FileNotFoundError(msg)
+
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_path)
 
         # Load IDF weights from local file
