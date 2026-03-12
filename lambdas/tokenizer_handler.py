@@ -50,9 +50,9 @@ def lambda_handler(event: dict, lambda_context: Context) -> dict:
         logger.warning("Received empty query in event: %s", event)
         return {"error": "Query is required in the event payload."}
 
-    start = time.time()
+    start = time.perf_counter()
     query_tokens = query_tokenizer.tokenize_query(query)
-    end = time.time()
+    end = time.perf_counter()
     logger.debug("Tokenization and IDF weighting took: %.4f seconds", end - start)
 
     logger.debug("Query tokens for OpenSearch:")
