@@ -92,10 +92,7 @@ class QueryTokenizer:
         Only non-zero entries are included in the output, keeping the result compact
         and directly usable as an OpenSearch rank_feature query payload.
         """
-        token_indices = torch.nonzero(sparse_vector, as_tuple=True)[0]
+        token_indices = torch.nonzero(sparse_vector, as_tuple=True)[0].tolist()
         non_zero_values = sparse_vector[token_indices].tolist()
-        tokens = [
-            cast("str", self.tokenizer.convert_ids_to_tokens(idx.item()))
-            for idx in token_indices
-        ]
-        return dict(zip(tokens, non_zero_values, strict=False))
+        tokens = self.tokenizer.convert_ids_to_tokens(token_indices)
+        return dict(zip(tokens, non_zero_values, strict=True))

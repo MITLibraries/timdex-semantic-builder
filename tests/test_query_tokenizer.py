@@ -19,9 +19,9 @@ def make_mock_tokenizer():
     mock_tokenizer.convert_tokens_to_ids.side_effect = lambda t: (
         HELLO_ID if t == "hello" else WORLD_ID
     )
-    mock_tokenizer.convert_ids_to_tokens.side_effect = lambda i: (
-        "hello" if i == HELLO_ID else "world"
-    )
+    mock_tokenizer.convert_ids_to_tokens.side_effect = lambda ids: [
+        "hello" if i == HELLO_ID else "world" for i in ids
+    ]
     return mock_tokenizer
 
 
@@ -89,9 +89,9 @@ def test_tokenize_query_returns_correct_weights(query_tokenizer):
 
 def test_tokenize_query_excludes_tokens_not_in_idf(query_tokenizer):
     # ID 20 is not in MOCK_IDF so its IDF weight is 0; it should be absent from result
-    query_tokenizer.tokenizer.convert_ids_to_tokens.side_effect = lambda i: (
-        "hello" if i == HELLO_ID else "unknown"
-    )
+    query_tokenizer.tokenizer.convert_ids_to_tokens.side_effect = lambda ids: [
+        "hello" if i == HELLO_ID else "unknown" for i in ids
+    ]
     query_tokenizer.tokenizer.return_value = {"input_ids": torch.tensor([[HELLO_ID, 20]])}
     result = query_tokenizer.tokenize_query("hello unknown")
     assert "hello" in result
