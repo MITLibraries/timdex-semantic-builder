@@ -104,11 +104,11 @@ When running a Lambda via SAM, it attempts to parse and setup AWS credentials ju
 
 ### Build the container
 
-`docker build -t my_function:latest .`
+`docker build -t tokenizer:latest .`
 
 ### Run the container
 
-`docker run -e WORKSPACE=dev -p 9000:8080 my_function:latest`
+`docker run -e WORKSPACE=dev -p 9000:8080 tokenizer:latest`
 
 ### Call the container via HTTP from another terminal window
 
