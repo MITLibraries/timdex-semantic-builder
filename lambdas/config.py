@@ -2,18 +2,20 @@ import logging
 import os
 
 import sentry_sdk
+
+# Load .env file. Generally only used in local dev as we exclude from git and docker
+from dotenv import load_dotenv
 from sentry_sdk.integrations.aws_lambda import AwsLambdaIntegration
+
+load_dotenv()
 
 logger = logging.getLogger(__name__)
 logger.setLevel(logging.DEBUG)
 
 
 class Config:
-    REQUIRED_ENV_VARS = (
-        "WORKSPACE",
-        "SENTRY_DSN",
-    )
-    OPTIONAL_ENV_VARS = ("WARNING_ONLY_LOGGERS",)
+    REQUIRED_ENV_VARS = ("WORKSPACE",)
+    OPTIONAL_ENV_VARS = ("LOG_LEVEL", "SENTRY_DSN", "WARNING_ONLY_LOGGERS")
 
     def check_required_env_vars(self) -> None:
         """Method to raise exception if required env vars not set."""
@@ -33,28 +35,20 @@ class Config:
             return dsn
         return None
 
+    @property
+    def log_level(self) -> int:
+        level_str = os.getenv("LOG_LEVEL", "INFO").upper()
+        return getattr(logging, level_str, logging.INFO)
+
 
 def configure_logger(
     root_logger: logging.Logger,
     *,
-    verbose: bool = False,
     warning_only_loggers: str | None = None,
 ) -> str:
-    """Configure application via passed application root logger.
-
-    If verbose=True, 3rd party libraries can be quite chatty.  For convenience, they can
-    be set to WARNING level by either passing a comma seperated list of logger names to
-    'warning_only_loggers' or by setting the env var WARNING_ONLY_LOGGERS.
-    """
-    if verbose:
-        root_logger.setLevel(logging.DEBUG)
-        logging_format = (
-            "%(asctime)s %(levelname)s %(name)s.%(funcName)s() "
-            "line %(lineno)d: %(message)s"
-        )
-    else:
-        root_logger.setLevel(logging.INFO)
-        logging_format = "%(asctime)s %(levelname)s %(name)s.%(funcName)s(): %(message)s"
+    """Configure application via passed application root logger."""
+    root_logger.setLevel(Config().log_level)
+    logging_format = "%(asctime)s %(levelname)s %(name)s.%(funcName)s(): %(message)s"
 
     warning_only_loggers = os.getenv("WARNING_ONLY_LOGGERS", warning_only_loggers)
     if warning_only_loggers:
@@ -74,17 +68,6 @@ def configure_logger(
         f"Logger '{root_logger.name}' configured with level="
         f"{logging.getLevelName(root_logger.getEffectiveLevel())}"
     )
-
-
-def configure_dev_logger(
-    warning_only_loggers: str = ",".join(  # noqa: FLY002
-        ["asyncio", "botocore", "urllib3", "boto3", "smart_open"]
-    ),
-) -> None:
-    """Invoke to setup DEBUG level console logging for development work."""
-    os.environ["WARNING_ONLY_LOGGERS"] = warning_only_loggers
-    root_logger = logging.getLogger()
-    configure_logger(root_logger, verbose=True)
 
 
 def configure_sentry() -> None:

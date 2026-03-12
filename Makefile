@@ -15,22 +15,26 @@ help: # Preview Makefile commands
 /^[-_[:alpha:]]+:.?*#/ { printf "  %-15s%s\n", $$1, $$2 }' $(MAKEFILE_LIST)
 
 # ensure OS binaries aren't called if naming conflict with Make recipes
-.PHONY: help venv install update test coveralls lint black mypy ruff safety lint-apply black-apply ruff-apply check-arch dist-dev publish-dev update-lambda-dev docker-clean
+.PHONY: help venv install update test coveralls lint lint-fix security sam-build sam-invoke console check-arch dist-dev publish-dev update-lambda-dev docker-clean
 
 ##############################################
 # Python Environment and Dependency commands
 ##############################################
 
-install: .venv .git/hooks/pre-commit # Install Python dependencies, hooks, and create virtual environment if not exists
+install: .venv .git/hooks/pre-commit .git/hooks/pre-push # Install Python dependencies and create virtual environment if not exists
 	uv sync --dev
 
 .venv: # Creates virtual environment if not found
 	@echo "Creating virtual environment at .venv..."
 	uv venv .venv
 
-.git/hooks/pre-commit: # Sets up pre-commit hook if not setup
-	@echo "Installing pre-commit hooks..."
-	uv run pre-commit install
+.git/hooks/pre-commit: # Sets up pre-commit commit hooks if not setup
+	@echo "Installing pre-commit commit hooks..."
+	uv run pre-commit install --hook-type pre-commit
+
+.git/hooks/pre-push: # Sets up pre-commit push hooks if not setup
+	@echo "Installing pre-commit push hooks..."
+	uv run pre-commit install --hook-type pre-push
 
 venv: .venv # Create the Python virtual environment
 
@@ -50,44 +54,36 @@ coveralls: test # Write coverage data to an LCOV report
 	uv run coverage lcov -o ./coverage/lcov.info
 
 ####################################
-# Code quality and safety commands
+# Code linting and formatting
 ####################################
 
-lint: black mypy ruff # Run linters
-
-black: # Run 'black' linter and print a preview of suggested changes
-	uv run black --check --diff .
-
-mypy: # Run 'mypy' linter
+lint: # Run linters
+	uv run ruff format --diff
 	uv run mypy .
-
-ruff: # Run 'ruff' linter and print a preview of errors
 	uv run ruff check .
 
-safety: # Check for security vulnerabilities
-	uv run pip-audit
-
-lint-apply: black-apply ruff-apply # Apply changes with 'black' and resolve 'fixable errors' with 'ruff'
-
-black-apply: # Apply changes with 'black'
-	uv run black .
-
-ruff-apply: # Resolve 'fixable errors' with 'ruff'
+lint-fix: # Run linting, auto fix behaviors where supported
+	uv run ruff format .
 	uv run ruff check --fix .
+
+security: # Check for security vulnerabilities
+	uv run pip-audit
 
 ####################################
 # SAM Lambda
 ####################################
-sam-build: # Build SAM image for running Lambda locally
-	sam build --template tests/sam/template.yaml
+sam-build: # Build Docker image for running Lambda locally
+	sam build --template tests/sam/template.yaml --debug
 
-sam-http-run: # Run lambda locally as an HTTP server
-	sam local start-api --template tests/sam/template.yaml --env-vars tests/sam/env.json
+sam-invoke: # Invoke lambda locally with tests/sam/event.json
+	sam local invoke Tokenizer --template tests/sam/template.yaml --env-vars tests/sam/env.json --event tests/sam/event.json
 
-sam-http-ping: # Send curl command to SAM HTTP server
-	curl --location 'http://localhost:3000/myapp' \
-	--header 'Content-Type: application/json' \
-	--data '{"msg":"in a bottle"}'
+####################################
+# Convenience commands
+####################################
+console: # Start a Python REPL with the project environment loaded
+	@echo "'exit' to quit console"
+	uv run ipython
 
 ####################################
 # Deployment to ECR
@@ -126,7 +122,7 @@ publish-dev: dist-dev ## Build, tag and push (intended for developer-based manua
     docker image prune -f --filter "dangling=true"
 
 ## If this is a Lambda repo, uncomment the two lines below
-update-lambda-dev: ## Updates the lambda with whatever is the most recent image in the ecr (intended for developer-based manual update)
+update-lambda-dev: check-arch ## Updates the lambda with whatever is the most recent image in the ecr (intended for developer-based manual update)
 	@ARCH_TAG=$$(cat .arch_tag); \
 	aws lambda update-function-code \
 		--region us-east-1 \

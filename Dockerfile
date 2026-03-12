@@ -16,4 +16,4 @@ FROM public.ecr.aws/lambda/python:3.14
 
 COPY --from=builder ${LAMBDA_TASK_ROOT} ${LAMBDA_TASK_ROOT}
 
-CMD ["lambdas.my_function.lambda_handler"]
+CMD ["lambdas.tokenizer_handler.lambda_handler"]
