@@ -13,6 +13,7 @@ from lambdas.query_tokenizer import QueryTokenizer
 # One-time, Lambda cold start setup
 # ---------------------------------------
 CONFIG = Config()
+CONFIG.check_required_env_vars()
 
 root_logger = logging.getLogger()
 log_config_message = configure_logger(root_logger)
