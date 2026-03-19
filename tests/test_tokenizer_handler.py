@@ -76,3 +76,18 @@ def test_non_ping_event_is_not_short_circuited(mock_query_tokenizer):
     result = tokenizer_handler.lambda_handler({"query": "hello"}, {})
     assert "query" in result
     mock_query_tokenizer.tokenize_query.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — load the real tokenizer and IDF from disk
+# Run only integration tests: uv run pytest -m integration
+# Run all except integration tests: uv run pytest -m "not integration"
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_integration_lambda_handler_returns_opensearch_query():
+    tokenizer_handler._get_tokenizer.cache_clear()  # ensure cold start
+    result = tokenizer_handler.lambda_handler({"query": "open access"}, {})
+    assert "query" in result
+    assert "bool" in result["query"]

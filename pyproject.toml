@@ -28,6 +28,9 @@ exclude = ["tests/"]
 
 [tool.pytest.ini_options]
 log_level = "INFO"
+markers = [
+    "integration: tests that load real models/files from disk (slow)",
+]
 
 [tool.ruff]
 target-version = "py314"
