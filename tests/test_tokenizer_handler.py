@@ -59,3 +59,20 @@ def test_returns_error_for_whitespace_only_query(mock_query_tokenizer):
     result = tokenizer_handler.lambda_handler({"query": "   "}, {})
     assert result == {"error": "Query is required in the event payload."}
     mock_query_tokenizer.tokenize_query.assert_not_called()
+
+
+def test_ping_event_returns_ok_status(mock_query_tokenizer):
+    result = tokenizer_handler.lambda_handler({"ping": True}, {})
+    assert result == {"status": "ok"}
+
+
+def test_ping_event_does_not_call_tokenizer(mock_query_tokenizer):
+    tokenizer_handler.lambda_handler({"ping": True}, {})
+    mock_query_tokenizer.tokenize_query.assert_not_called()
+
+
+def test_non_ping_event_is_not_short_circuited(mock_query_tokenizer):
+    mock_query_tokenizer.tokenize_query.return_value = {"hello": 1.5}
+    result = tokenizer_handler.lambda_handler({"query": "hello"}, {})
+    assert "query" in result
+    mock_query_tokenizer.tokenize_query.assert_called_once()
