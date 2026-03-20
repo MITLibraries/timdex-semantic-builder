@@ -66,7 +66,7 @@ def test_ping_event_returns_ok_status(mock_query_tokenizer):
     assert result == {"status": "ok"}
 
 
-def test_ping_event_does_not_call_tokenizer(mock_query_tokenizer):
+def test_ping_event_does_not_call_tokenize_query(mock_query_tokenizer):
     tokenizer_handler.lambda_handler({"ping": True}, {})
     mock_query_tokenizer.tokenize_query.assert_not_called()
 
