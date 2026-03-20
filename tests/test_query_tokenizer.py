@@ -129,3 +129,39 @@ def test_load_idf_raises_filenotfounderror_when_idf_file_missing():
         pytest.raises(FileNotFoundError),
     ):
         QueryTokenizer()
+
+
+# ---------------------------------------------------------------------------
+# Integration tests — load the real tokenizer and IDF from disk
+# Run only integration tests: uv run pytest -m integration
+# Run all except integration tests: uv run pytest -m "not integration"
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_integration_tokenize_query_returns_nonempty_dict():
+    """Real tokenizer and IDF: tokenize_query returns a non-empty dict."""
+    qt = QueryTokenizer()
+    result = qt.tokenize_query("machine learning")
+    assert isinstance(result, dict)
+    assert len(result) > 0
+
+
+@pytest.mark.integration
+def test_integration_tokenize_query_values_are_positive_floats():
+    """Real tokenizer and IDF: all weights are positive floats."""
+    qt = QueryTokenizer()
+    result = qt.tokenize_query("machine learning")
+    for token, weight in result.items():
+        assert isinstance(token, str), f"Expected str key, got {type(token)}"
+        assert isinstance(weight, float), f"Expected float weight, got {type(weight)}"
+        assert weight > 0, f"Expected positive weight for {token!r}, got {weight}"
+
+
+@pytest.mark.integration
+def test_integration_tokenize_query_deterministic():
+    """Real tokenizer and IDF: same input always produces the same output."""
+    qt = QueryTokenizer()
+    result_a = qt.tokenize_query("open access repositories")
+    result_b = qt.tokenize_query("open access repositories")
+    assert result_a == result_b

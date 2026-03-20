@@ -43,6 +43,13 @@ def lambda_handler(event: dict, lambda_context: Context) -> dict:
 
     query_tokenizer = _get_tokenizer()
 
+    # Handle ping or health check events
+    # We add this after query_tokenizer initialization to ensure the tokenizer is
+    # initialized during cold start, even for pings
+    if "ping" in event:
+        logger.debug("Received ping event")
+        return {"status": "ok"}
+
     # Generate query tokens
     query = event.get("query", "")
 
