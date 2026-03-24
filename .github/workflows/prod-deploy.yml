@@ -71,7 +71,7 @@ jobs:
     steps:
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v5
+        uses: aws-actions/configure-aws-credentials@v6
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCT_PROD }}:role/${{ env.GHA_ROLE }}
@@ -90,10 +90,12 @@ jobs:
           echo "New published Lambda version = $VERSION" >> $GITHUB_STEP_SUMMARY
 
       - name: Update Lambda Alias
+        env:
+          VERSION: ${{ steps.version.outputs.lambda_version }}
         id: alias
         run: |
           echo "### Update Lambda Alias" >> $GITHUB_STEP_SUMMARY
-          ALIAS_VERSION=$(aws lambda update-alias --region ${{ env.AWS_REGION }} --function-name ${{ env.FUNCTION }} --name live --function-version ${{ steps.version.outputs.lambda_version }} --routing-config '{}' --query 'FunctionVersion' --output text)
+          ALIAS_VERSION=$(aws lambda update-alias --region ${{ env.AWS_REGION }} --function-name ${{ env.FUNCTION }} --name live --function-version ${{ env.VERSION }} --routing-config '{}' --query 'FunctionVersion' --output text)
           echo "Lambda alias linked to function version $ALIAS_VERSION" >> GITHUB_STEP_SUMMARY
 
       - name: Cleanup Lambda Versions
@@ -115,4 +117,4 @@ jobs:
             fi
           done <<< "$VERSIONS_TO_DELETE"
           CURRENT_VERSIONS=$(aws lambda list-versions-by-function --function-name ${{ env.FUNCTION }} --query 'Versions[?Version!=`$LATEST`].Version' --output text)
-          echo "Current available versions of the Lambda: \n $CURRENT_VERSIONS" >> $GITHUB_STEP_SUMMARY
+          echo "Current available versions of the Lambda: $CURRENT_VERSIONS" >> $GITHUB_STEP_SUMMARY
