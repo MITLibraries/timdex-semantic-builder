@@ -118,5 +118,5 @@ jobs:
                 --qualifier "$VERSION"
             fi
           done <<< "$VERSIONS_TO_DELETE"
-          CURRENT_VERSIONS=$(aws lambda list-versions-by-function --function-name ${{ env.FUNCTION }} --query 'Versions[?Version!=`$LATEST`].Version --output text)
+          CURRENT_VERSIONS=$(aws lambda list-versions-by-function --function-name ${{ env.FUNCTION }} --query 'Versions[?Version!=`$LATEST`].Version' --output text)
           echo "Current available versions of the Lambda: \n $CURRENT_VERSIONS" >> $GITHUB_STEP_SUMMARY
