@@ -163,15 +163,15 @@ Response:
 
 ## Notes on automated deployment in AWS
 
-Due to the need for provisioned capacity to keep this Lambda warm, it diverges a bit from our standard dev/stage/prod deployment workflows as noted below.
+Due to the need for provisioned concurrency to keep this Lambda warm, it diverges a bit from our standard dev/stage/prod deployment workflows as noted below.
 
-Each of the thre GitHub Actions workflows ([dev-build](.github/workflows/dev-build.yml), [stage-build](.github/workflows/stage-build.yml), [prod-deploy](.github/workflows/prod-deploy.yml)) has an additional job to handle the extra deployment steps to ensure that the provisioned capacity works correctly. This job handles three steps:
+Each of the three GitHub Actions workflows ([dev-build](.github/workflows/dev-build.yml), [stage-build](.github/workflows/stage-build.yml), [prod-deploy](.github/workflows/prod-deploy.yml)) has an additional job to handle the extra deployment steps to ensure that the provisioned concurrency works correctly. This job handles three steps:
 
 1. Publish the latest version of the Lambda function.
 1. Update the "live" alias to the function so that it points to the most recent published version of the function.
 1. Clean up leftover published versions of the function, leaving the latest and next-most latest published versions in place.
 
-These extra steps are necessary because the infrastructure configures an Lambda alias and associates the provisioned capacity to that alias.
+These extra steps are necessary because the infrastructure configures a Lambda alias and associates the provisioned concurrency to that alias.
 
 ## Environment Variables
 

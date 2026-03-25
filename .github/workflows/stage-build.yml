@@ -100,7 +100,7 @@ jobs:
         run: |
           echo "### Update Lambda Alias" >> $GITHUB_STEP_SUMMARY
           ALIAS_VERSION=$(aws lambda update-alias --region ${{ env.AWS_REGION }} --function-name ${{ env.FUNCTION }} --name live --function-version ${{ env.VERSION }} --routing-config '{}' --query 'FunctionVersion' --output text)
-          echo "Lambda alias linked to function version $ALIAS_VERSION" >> GITHUB_STEP_SUMMARY
+          echo "Lambda alias linked to function version $ALIAS_VERSION" >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup Lambda Versions
         id: cleanup
@@ -109,7 +109,7 @@ jobs:
           VERSIONS=$(aws lambda list-versions-by-function --function-name ${{ env.FUNCTION }} --query 'Versions[?Version!=`$LATEST`].Version')
           echo "Current versions:"
           echo "$VERSIONS"
-          VERSIONS_TO_DELETE=$(echo $VERSIONS | jq -r 'sort_by(tonumber) | .[:-2] | .[]')
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | jq -r 'sort_by(tonumber) | .[:-2] | .[]')
           echo "Versions to delete:"
           echo "$VERSIONS_TO_DELETE"
           while read VERSION; do
