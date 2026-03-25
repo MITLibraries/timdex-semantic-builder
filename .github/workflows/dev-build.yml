@@ -58,3 +58,67 @@ jobs:
       CPU_ARCH: ${{ needs.prep.outputs.cpuarch }}
       FUNCTION: "timdex-semantic-builder-dev"
       # PREBUILD: 
+
+# The following section is specific to this function because this is our first
+# Lambda function that requires provisioned capacity to stay warm. As a 
+# consequence, we need to ensure that the Lambda is "published" and that the
+# Lambda alias points at the latest published version. We may eventually move
+# this to the shared workflow...
+  publish:
+    needs: deploy
+    name: Publish and Update Alias
+    env:
+      AWS_REGION: "us-east-1"
+      GHA_ROLE: "timdex-semantic-builder-gha-dev"
+      FUNCTION: "timdex-semantic-builder-dev"
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCT_DEV }}:role/${{ env.GHA_ROLE }}
+
+      - name: Publish New Version
+        id: version
+        run: |
+          echo "Waiting for updated Lambda function to be ready"
+          aws lambda wait function-updated-v2 --region ${{ env.AWS_REGION }} --function-name ${{ env.FUNCTION }}
+          echo "New updated Lambda is ready."
+          echo "### Publish New Version of the Lambda" >> $GITHUB_STEP_SUMMARY
+          VERSION=$(aws lambda publish-version --region ${{ env.AWS_REGION }} --function-name ${{ env.FUNCTION }} --query 'Version' --output text)
+          echo "lambda_version=$VERSION" >> $GITHUB_OUTPUT
+          aws lambda wait published-version-active --region ${{ env.AWS_REGION }} --function-name ${{ env.FUNCTION }} --qualifier $VERSION
+          echo "New published Lambda is ready."
+          echo "New published Lambda version = $VERSION" >> $GITHUB_STEP_SUMMARY
+
+      - name: Update Lambda Alias
+        id: alias
+        env:
+          VERSION: ${{ steps.version.outputs.lambda_version }}
+        run: |
+          echo "### Update Lambda Alias" >> $GITHUB_STEP_SUMMARY
+          ALIAS_VERSION=$(aws lambda update-alias --region ${{ env.AWS_REGION }} --function-name ${{ env.FUNCTION }} --name live --function-version ${{ env.VERSION }} --routing-config '{}' --query 'FunctionVersion' --output text)
+          echo "Lambda alias linked to function version $ALIAS_VERSION" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup Lambda Versions
+        id: cleanup
+        run: |
+          echo "### Cleanup Lambda Versions" >> $GITHUB_STEP_SUMMARY
+          VERSIONS=$(aws lambda list-versions-by-function --function-name ${{ env.FUNCTION }} --query 'Versions[?Version!=`$LATEST`].Version')
+          echo "Current versions:"
+          echo "$VERSIONS"
+          VERSIONS_TO_DELETE=$(echo "$VERSIONS" | jq -r 'sort_by(tonumber) | .[:-2] | .[]')
+          echo "Versions to delete:"
+          echo "$VERSIONS_TO_DELETE"
+          while read VERSION; do
+            if [ -n "$VERSION" ]; then
+              echo "Deleting version: $VERSION"
+              aws lambda delete-function \
+                --function-name ${{ env.FUNCTION }} \
+                --qualifier "$VERSION"
+            fi
+          done <<< "$VERSIONS_TO_DELETE"
+          CURRENT_VERSIONS=$(aws lambda list-versions-by-function --function-name ${{ env.FUNCTION }} --query 'Versions[?Version!=`$LATEST`].Version' --output text)
+          echo "Current available versions of the Lambda: $CURRENT_VERSIONS" >> $GITHUB_STEP_SUMMARY
