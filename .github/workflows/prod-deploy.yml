@@ -9,6 +9,11 @@ on:
   release:
     types: [published]
 
+concurrency:
+  group: prod-deploy
+  cancel-in-progress: false
+  queue: single
+
 permissions:
   id-token: write
   contents: read
