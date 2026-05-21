@@ -15,6 +15,7 @@ on:
       - main
     paths-ignore:
       - '.github/**'
+      - 'README.md'
 
 # Force multiple invocations of this workflow to run in sequence not in 
 # parallel
@@ -73,19 +74,19 @@ jobs:
           echo "### Publish New Version of Lambda" >> $GITHUB_STEP_SUMMARY
           echo "Waiting for updated Lambda function to be ready"
           aws lambda wait function-updated-v2 \
-            --region "${{ env.AWS_REGION }}" \
-            --function-name "${{ env.FUNCTION }}"
+            --region "$AWS_REGION" \
+            --function-name "$FUNCTION"
           echo "New updated Lambda is ready."
           echo "Publish New Version of the Lambda"
           VERSION=$(aws lambda publish-version \
-            --region "${{ env.AWS_REGION }}" \
-            --function-name "${{ env.FUNCTION }}" \
+            --region "$AWS_REGION" \
+            --function-name "$FUNCTION" \
             --query 'Version' \
             --output text)
           echo "lambda_version=$VERSION" >> $GITHUB_OUTPUT
           aws lambda wait published-version-active \
-            --region "${{ env.AWS_REGION }}" \
-            --function-name "${{ env.FUNCTION }}" \
+            --region "$AWS_REGION" \
+            --function-name "$FUNCTION" \
             --qualifier $VERSION
           echo "New published Lambda is ready."
           echo "New published Lambda version = $VERSION" >> $GITHUB_STEP_SUMMARY
@@ -101,10 +102,10 @@ jobs:
         run: |
           echo "### Update Lambda Alias" >> $GITHUB_STEP_SUMMARY
           NEW_ALIAS_VERSION=$(aws lambda update-alias \
-            --region "${{ env.AWS_REGION }}" \
-            --function-name "${{ env.FUNCTION }}" \
+            --region "$AWS_REGION" \
+            --function-name "$FUNCTION" \
             --name live \
-            --function-version "${{ env.VERSION }}" \
+            --function-version "$VERSION" \
             --routing-config '{}' \
             --query 'FunctionVersion' \
             --output text)
@@ -118,12 +119,12 @@ jobs:
           
           while [ $ATTEMPT -lt $MAX_ATTEMPTS ]; do
             LAMBDA_ALIAS_INFO=$(aws lambda get-alias \
-              --region "${{ env.AWS_REGION }}" \
-              --function-name "${{ env.FUNCTION }}" \
+              --region "$AWS_REGION" \
+              --function-name "$FUNCTION" \
               --name live)
             CURRENT_VERSION=$(echo "$LAMBDA_ALIAS_INFO" | jq -r '.FunctionVersion')
             ROUTING_CONFIG=$(echo "$LAMBDA_ALIAS_INFO" | jq -r '.RoutingConfig // empty')
-            if [ "$CURRENT_VERSION" = "${{ env.VERSION }}" ] && [ -z "$ROUTING_CONFIG" ]; then
+            if [ "$CURRENT_VERSION" = "$VERSION" ] && [ -z "$ROUTING_CONFIG" ]; then
               echo "Lambda alias stabile"
               echo "Lambda alias stabilized on version $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
               exit 0
@@ -141,7 +142,7 @@ jobs:
         run: |
           echo "### Cleanup Lambda Versions" >> $GITHUB_STEP_SUMMARY
           VERSIONS=$(aws lambda list-versions-by-function \
-            --function-name "${{ env.FUNCTION }}" \
+            --function-name "$FUNCTION" \
             --query 'Versions[?Version!=`$LATEST`].Version')
           echo "Current versions:"
           echo "$VERSIONS"
@@ -152,12 +153,12 @@ jobs:
             if [ -n "$VERSION" ]; then
               echo "Deleting version: $VERSION"
               aws lambda delete-function \
-                --function-name "${{ env.FUNCTION }}" \
+                --function-name "$FUNCTION" \
                 --qualifier "$VERSION"
             fi
           done <<< "$VERSIONS_TO_DELETE"
           CURRENT_VERSIONS=$(aws lambda list-versions-by-function \
-            --function-name "${{ env.FUNCTION }}" \
+            --function-name "$FUNCTION" \
             --query 'Versions[?Version!=`$LATEST`].Version' \
             --output text)
           echo "Current available versions of the Lambda: $CURRENT_VERSIONS" >> $GITHUB_STEP_SUMMARY
