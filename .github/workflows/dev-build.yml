@@ -7,7 +7,7 @@
 
 name: Dev Container Build and Deploy
 # Allow for manual runs (workflow_dispatch) and PRs to the main branch except
-# for changes in the .github directory
+# for changes in the .github directory and the README
 on:
   workflow_dispatch:
   pull_request:
@@ -125,8 +125,8 @@ jobs:
             CURRENT_VERSION=$(echo "$LAMBDA_ALIAS_INFO" | jq -r '.FunctionVersion')
             ROUTING_CONFIG=$(echo "$LAMBDA_ALIAS_INFO" | jq -r '.RoutingConfig // empty')
             if [ "$CURRENT_VERSION" = "$VERSION" ] && [ -z "$ROUTING_CONFIG" ]; then
-              echo "Lambda alias stabile"
-              echo "Lambda alias stabilized on version $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
+              echo "Lambda alias has stabilized"
+              echo "Lambda alias has stabilized on version $CURRENT_VERSION" >> $GITHUB_STEP_SUMMARY
               exit 0
             fi
             ATTEMPT=$(($ATTEMPT + 1))
@@ -142,17 +142,17 @@ jobs:
         run: |
           echo "### Cleanup Lambda Versions" >> $GITHUB_STEP_SUMMARY
           VERSIONS=$(aws lambda list-versions-by-function \
+            --region "$AWS_REGION" \
             --function-name "$FUNCTION" \
             --query 'Versions[?Version!=`$LATEST`].Version')
-          echo "Current versions:"
-          echo "$VERSIONS"
+          echo "Current versions: $VERSIONS"
           VERSIONS_TO_DELETE=$(echo "$VERSIONS" | jq -r 'sort_by(tonumber) | .[:-2] | .[]')
-          echo "Versions to delete:"
-          echo "$VERSIONS_TO_DELETE"
+          echo "Versions to delete: $VERSIONS_TO_DELETE"
           while read VERSION; do
             if [ -n "$VERSION" ]; then
               echo "Deleting version: $VERSION"
               aws lambda delete-function \
+                --region "$AWS_REGION" \
                 --function-name "$FUNCTION" \
                 --qualifier "$VERSION"
             fi
