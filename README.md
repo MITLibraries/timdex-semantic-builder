@@ -173,6 +173,52 @@ Each of the three GitHub Actions workflows ([dev-build](.github/workflows/dev-bu
 
 These extra steps are necessary because the infrastructure configures a Lambda alias and associates the provisioned concurrency to that alias.
 
+### Handling AWS Latency
+
+There are some inherent delays/latency in AWS around Lambda function deployment, version publishing, and alias assignment that require some additional work in the GHA workflows.
+
+#### Lambda Publishing Latency
+
+After deploying a new Lambda with the shared `ecr-multi-arch-deploy-<env>` workflow, there is a delay before that new Lambda is even available for publishing. Thankfully, AWS has a `wait` command as part of the `aws lambda` CLI command ([AWS Docuentation on `wait`](https://docs.aws.amazon.com/cli/latest/reference/lambda/wait/)). The **Publish New Version** step in the workflows uses `aws lambda wait` to ensure that the deployed Lambda is ready for "publishing" before running the `aws lambda publish-version` command.
+
+Then there is another delay while AWS prepares the published version, so we use the `aws lambda wait` again to ensure that the published version is available before allowing the **Publish New Version** step to complete.
+
+#### Alias Assignment Latency
+
+There is also some inherent latency around the process of assigning an alias to a published Lambda (see the **Update Lambda Alias** step in the workflows). Unfortunately, the `aws lambda wait` cannot help here! After assigning the `"live"` alias to the latest published version of the Lambda function, there is a window of time when the alias is linked to more than one published version and a routing config is temporarily in place. This can be seen with the `aws lambda get-alias` command:
+
+```bash
+% aws lambda get-alias --region <region> --function-name <function_name> --name <alias_name>
+14
+% aws lambda get-alias --region <region> --function-name <function_name> --name <alias_name>
+{
+    "AliasArn": "arn:aws:lambda:<region>:xxxxxxxxxx:function:<function_name>:<alias_name>",
+    "Name": "<alias_name>",
+    "FunctionVersion": "14",
+    "Description": "Alias to <function_name> Lambda function; necessary for provisioned capacity",
+    "RoutingConfig": {
+        "AdditionalVersionWeights": {
+            "13": 1.0
+        }
+    },
+    "RevisionId": "<UUID>"
+}
+```
+
+Once the alias has stabilized, the output from the `aws lambda get-alias` command no longer has the `RoutingConfig` key:
+
+```json
+{
+    "AliasArn": "arn:aws:lambda:<region>:xxxxxxxxxx:function:<function_name>:<alias_name>",
+    "Name": "<alias_name>",
+    "FunctionVersion": "14",
+    "Description": "Alias to <function_name> Lambda function; necessary for provisioned capacity",
+    "RevisionId": "<UUID>"
+}
+```
+
+Since we cannot use `aws lambda wait`, we build a `while` loop poller that checks this output and smoothly exits once the `RoutingConfig` key disappears from the output. If the while loop finishes without the `RoutingConfig` key disappearing during the configured timeout (currently 5 minutes), the **Update Lambda Alias** step exits with an error code.
+
 ## Environment Variables
 
 In local development, you can add a `.env` file to manage these. The file is excluded from git and docker builds via
