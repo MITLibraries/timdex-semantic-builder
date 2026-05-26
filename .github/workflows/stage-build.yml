@@ -77,7 +77,7 @@ jobs:
             --region "$AWS_REGION" \
             --function-name "$FUNCTION"
           echo "New updated Lambda is ready."
-          echo "### Publish New Version of the Lambda" >> $GITHUB_STEP_SUMMARY
+          echo "Publish New Version of the Lambda"
           VERSION=$(aws lambda publish-version \
             --region "$AWS_REGION" \
             --function-name "$FUNCTION" \
@@ -153,7 +153,7 @@ jobs:
               echo "Deleting version: $VERSION"
               aws lambda delete-function \
                 --region "$AWS_REGION" \
-                --function-name ${{ env.FUNCTION }} \
+                --function-name "$FUNCTION" \
                 --qualifier "$VERSION"
             fi
           done <<< "$VERSIONS_TO_DELETE"
