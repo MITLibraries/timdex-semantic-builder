@@ -86,13 +86,22 @@ class QueryTokenizer:
         # Convert to dict format
         return self._sparse_vector_to_dict(query_sparse_vector[0])
 
+    # Special tokens that carry no semantic meaning to be excluded from query
+    _IRRELEVANT_TOKENS = frozenset({"[CLS]", "[SEP]"})
+
     def _sparse_vector_to_dict(self, sparse_vector: torch.Tensor) -> dict[str, float]:
         """Convert a 1D sparse tensor into a dict of token strings to float weights.
 
         Only non-zero entries are included in the output, keeping the result compact
         and directly usable as an OpenSearch rank_feature query payload.
+        Special tokens ([CLS], [SEP]) are unconditionally excluded.
         """
         token_indices = torch.nonzero(sparse_vector, as_tuple=True)[0].tolist()
         non_zero_values = sparse_vector[token_indices].tolist()
         tokens = self.tokenizer.convert_ids_to_tokens(token_indices)
-        return dict(zip(tokens, non_zero_values, strict=True))
+
+        return {
+            token: weight
+            for token, weight in zip(tokens, non_zero_values, strict=True)
+            if token not in self._IRRELEVANT_TOKENS
+        }

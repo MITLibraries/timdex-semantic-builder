@@ -98,6 +98,27 @@ def test_tokenize_query_excludes_tokens_not_in_idf(query_tokenizer):
     assert "unknown" not in result
 
 
+def test_sparse_vector_to_dict_excludes_cls_and_sep(query_tokenizer):
+    # [CLS] and [SEP] have IDF weight assigned but are dropped unconditionally
+    # as they provide no semantic meaning
+    cls_id = 30
+    sep_id = 31
+    query_tokenizer.idf[cls_id] = 3.0
+    query_tokenizer.idf[sep_id] = 3.0
+    query_tokenizer.tokenizer.convert_ids_to_tokens.side_effect = lambda ids: [
+        {HELLO_ID: "hello", cls_id: "[CLS]", sep_id: "[SEP]"}.get(i, "unknown")
+        for i in ids
+    ]
+    sparse = torch.zeros(VOCAB_SIZE)
+    sparse[HELLO_ID] = 1.5
+    sparse[cls_id] = 3.0
+    sparse[sep_id] = 3.0
+    result = query_tokenizer._sparse_vector_to_dict(sparse)
+    assert "[CLS]" not in result
+    assert "[SEP]" not in result
+    assert "hello" in result
+
+
 def test_init_raises_filenotfounderror_when_tokenizer_path_missing():
     """Test that FileNotFoundError is raised when tokenizer_path doesn't exist."""
     with (
