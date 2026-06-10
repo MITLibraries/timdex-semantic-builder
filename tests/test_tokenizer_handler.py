@@ -3,6 +3,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from lambdas import tokenizer_handler
+from lambdas.tokenizer_handler import (
+    DROP_BOOST_THRESHOLD,
+    SHORT_QUERY_MAX_TOKENS,
+    MUST_BOOST_THRESHOLD,
+    _build_opensearch_query,
+)
 
 
 @pytest.fixture
@@ -17,16 +23,18 @@ def test_returns_opensearch_query_structure(mock_query_tokenizer):
     result = tokenizer_handler.lambda_handler({"query": "hello world"}, {})
     assert "query" in result
     assert "bool" in result["query"]
-    assert "should" in result["query"]["bool"]
+    bool_query = result["query"]["bool"]
+    assert "must" in bool_query or "should" in bool_query
 
 
 def test_opensearch_query_contains_rank_features(mock_query_tokenizer):
+    # With a single token it will go to must (it is 100% of max)
     mock_query_tokenizer.tokenize_query.return_value = {"hello": 1.5}
     result = tokenizer_handler.lambda_handler({"query": "hello"}, {})
-    should_clauses = result["query"]["bool"]["should"]
-    assert len(should_clauses) == 1
-    assert should_clauses[0]["rank_feature"]["field"] == "embedding_full_record.hello"
-    assert should_clauses[0]["rank_feature"]["boost"] == pytest.approx(1.5)
+    must_clauses = result["query"]["bool"]["must"]
+    assert len(must_clauses) == 1
+    assert must_clauses[0]["rank_feature"]["field"] == "embedding_full_record.hello"
+    assert must_clauses[0]["rank_feature"]["boost"] == pytest.approx(1.5)
 
 
 def test_returns_no_query_provided_for_empty_query(mock_query_tokenizer):
@@ -44,8 +52,9 @@ def test_returns_no_query_provided_when_query_key_missing(mock_query_tokenizer):
 def test_each_token_weight_pair_becomes_rank_feature(mock_query_tokenizer):
     mock_query_tokenizer.tokenize_query.return_value = {"foo": 1.0, "bar": 3.5}
     result = tokenizer_handler.lambda_handler({"query": "foo bar"}, {})
-    should_clauses = result["query"]["bool"]["should"]
-    fields = {c["rank_feature"]["field"] for c in should_clauses}
+    bool_query = result["query"]["bool"]
+    all_clauses = bool_query.get("must", []) + bool_query.get("should", [])
+    fields = {c["rank_feature"]["field"] for c in all_clauses}
     assert fields == {"embedding_full_record.foo", "embedding_full_record.bar"}
 
 
@@ -79,6 +88,102 @@ def test_non_ping_event_is_not_short_circuited(mock_query_tokenizer):
 
 
 # ---------------------------------------------------------------------------
+# _build_opensearch_query unit tests
+# ---------------------------------------------------------------------------
+
+
+def test_high_weight_token_goes_to_must():
+    # max=10.0; 9.0 >= 7.0 (70% of 10) → must
+    tokens = {"high": 10.0, "low": 1.0}
+    result = _build_opensearch_query(tokens)
+    must_fields = {c["rank_feature"]["field"] for c in result["query"]["bool"]["must"]}
+    assert "embedding_full_record.high" in must_fields
+
+
+def test_low_weight_token_goes_to_should():
+    # max=10.0; 1.0 < 7.0 (70% of 10) → should
+    tokens = {"high": 10.0, "low": 1.0}
+    result = _build_opensearch_query(tokens)
+    should_fields = {
+        c["rank_feature"]["field"] for c in result["query"]["bool"]["should"]
+    }
+    assert "embedding_full_record.low" in should_fields
+
+
+def test_all_high_weight_tokens_produce_only_must_block():
+    # All tokens within 70%+ of max → only must, no should key
+    tokens = {"a": 10.0, "b": 9.0, "c": 8.0}
+    result = _build_opensearch_query(tokens)
+    bool_query = result["query"]["bool"]
+    assert "must" in bool_query
+    assert "should" not in bool_query
+
+
+def test_must_threshold_is_applied_relative_to_max():
+    # dominant token sets max; just_above and just_below straddle the 70% cutoff
+    max_w = 10.0
+    must_cutoff = max_w * MUST_BOOST_THRESHOLD
+    tokens = {
+        "dominant": max_w,
+        "just_above": must_cutoff + 0.01,
+        "just_below": must_cutoff - 0.01,
+    }
+    result = _build_opensearch_query(tokens)
+    bool_query = result["query"]["bool"]
+    must_fields = {c["rank_feature"]["field"] for c in bool_query.get("must", [])}
+    should_fields = {c["rank_feature"]["field"] for c in bool_query.get("should", [])}
+    assert "embedding_full_record.just_above" in must_fields
+    assert "embedding_full_record.just_below" in should_fields
+
+
+def test_low_weight_token_dropped_when_many_features():
+    # Build FEW_FEATURES_MAX+1 tokens; one is near-zero → should be dropped
+    tokens = {f"t{i}": float(10 - i) for i in range(SHORT_QUERY_MAX_TOKENS)}  # normal weights
+    tokens["near_zero"] = 0.001  # well below DROP_BOOST_THRESHOLD * max
+    assert len(tokens) == SHORT_QUERY_MAX_TOKENS + 1
+
+    result = _build_opensearch_query(tokens)
+    bool_query = result["query"]["bool"]
+    all_clauses = bool_query.get("must", []) + bool_query.get("should", [])
+    all_fields = {c["rank_feature"]["field"] for c in all_clauses}
+    assert "embedding_full_record.near_zero" not in all_fields
+
+
+def test_low_weight_token_kept_when_few_features():
+    # FEW_FEATURES_MAX or fewer tokens → no dropping regardless of weight
+    tokens = {"dominant": 10.0, "tiny": 0.001}
+    assert len(tokens) <= SHORT_QUERY_MAX_TOKENS
+
+    result = _build_opensearch_query(tokens)
+    bool_query = result["query"]["bool"]
+    all_clauses = bool_query.get("must", []) + bool_query.get("should", [])
+    all_fields = {c["rank_feature"]["field"] for c in all_clauses}
+    assert "embedding_full_record.tiny" in all_fields
+
+
+def test_drop_threshold_is_applied_relative_to_max():
+    max_w = 10.0
+    drop_cutoff = max_w * DROP_BOOST_THRESHOLD
+    # Filler tokens at max_w to anchor the max; keep/drop straddle the drop cutoff
+    tokens = {f"filler{i}": max_w for i in range(SHORT_QUERY_MAX_TOKENS)}
+    tokens["keep"] = drop_cutoff + 0.01
+    tokens["drop"] = drop_cutoff - 0.01
+    assert len(tokens) > SHORT_QUERY_MAX_TOKENS
+
+    result = _build_opensearch_query(tokens)
+    bool_query = result["query"]["bool"]
+    all_clauses = bool_query.get("must", []) + bool_query.get("should", [])
+    all_fields = {c["rank_feature"]["field"] for c in all_clauses}
+    assert "embedding_full_record.keep" in all_fields
+    assert "embedding_full_record.drop" not in all_fields
+
+
+def test_empty_tokens_returns_empty_bool_query():
+    result = _build_opensearch_query({})
+    assert result == {"query": {"bool": {}}}
+
+
+# ---------------------------------------------------------------------------
 # Integration tests — load the real tokenizer and IDF from disk
 # Run only integration tests: uv run pytest -m integration
 # Run all except integration tests: uv run pytest -m "not integration"
@@ -91,3 +196,5 @@ def test_integration_lambda_handler_returns_opensearch_query():
     result = tokenizer_handler.lambda_handler({"query": "open access"}, {})
     assert "query" in result
     assert "bool" in result["query"]
+    bool_query = result["query"]["bool"]
+    assert "must" in bool_query or "should" in bool_query
