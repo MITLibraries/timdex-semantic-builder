@@ -5,8 +5,8 @@ import pytest
 from lambdas import tokenizer_handler
 from lambdas.tokenizer_handler import (
     DROP_BOOST_THRESHOLD,
-    SHORT_QUERY_MAX_TOKENS,
     MUST_BOOST_THRESHOLD,
+    SHORT_QUERY_MAX_TOKENS,
     _build_opensearch_query,
 )
 
@@ -138,7 +138,9 @@ def test_must_threshold_is_applied_relative_to_max():
 
 def test_low_weight_token_dropped_when_many_features():
     # Build FEW_FEATURES_MAX+1 tokens; one is near-zero → should be dropped
-    tokens = {f"t{i}": float(10 - i) for i in range(SHORT_QUERY_MAX_TOKENS)}  # normal weights
+    tokens = {
+        f"t{i}": float(10 - i) for i in range(SHORT_QUERY_MAX_TOKENS)
+    }  # normal weights
     tokens["near_zero"] = 0.001  # well below DROP_BOOST_THRESHOLD * max
     assert len(tokens) == SHORT_QUERY_MAX_TOKENS + 1
 
@@ -178,9 +180,51 @@ def test_drop_threshold_is_applied_relative_to_max():
     assert "embedding_full_record.drop" not in all_fields
 
 
+def test_no_tokens_dropped_when_all_weights_are_above_drop_threshold():
+    # Many tokens, but all weights well above the drop cutoff → all are retained
+    tokens = {f"t{i}": float(10 - i * 0.1) for i in range(SHORT_QUERY_MAX_TOKENS + 1)}
+    assert len(tokens) > SHORT_QUERY_MAX_TOKENS
+
+    result = _build_opensearch_query(tokens)
+    bool_query = result["query"]["bool"]
+    all_clauses = bool_query.get("must", []) + bool_query.get("should", [])
+    assert len(all_clauses) == len(tokens)
+
+
 def test_empty_tokens_returns_empty_bool_query():
     result = _build_opensearch_query({})
     assert result == {"query": {"bool": {}}}
+
+
+def test_event_threshold_overrides_are_used(mock_query_tokenizer):
+    # Passing must_boost_threshold=1.0 means only exact-max tokens go to must.
+    # With two tokens at different weights, the lower one should land in should.
+    mock_query_tokenizer.tokenize_query.return_value = {"high": 10.0, "low": 5.0}
+    result = tokenizer_handler.lambda_handler(
+        {"query": "high low", "must_boost_threshold": 1.0},
+        {},
+    )
+    bool_query = result["query"]["bool"]
+    must_fields = {c["rank_feature"]["field"] for c in bool_query.get("must", [])}
+    should_fields = {c["rank_feature"]["field"] for c in bool_query.get("should", [])}
+    assert "embedding_full_record.high" in must_fields
+    assert "embedding_full_record.low" in should_fields
+
+
+def test_event_drop_threshold_override_is_used(mock_query_tokenizer):
+    # Passing drop_boost_threshold=0.0 and short_query_max_tokens=0 ensures
+    # nothing is dropped even when weights are tiny.
+    tokens = {f"t{i}": float(10 - i) for i in range(SHORT_QUERY_MAX_TOKENS)}
+    tokens["tiny"] = 0.001
+    mock_query_tokenizer.tokenize_query.return_value = tokens
+    result = tokenizer_handler.lambda_handler(
+        {"query": "test", "drop_boost_threshold": 0.0, "short_query_max_tokens": 0},
+        {},
+    )
+    bool_query = result["query"]["bool"]
+    all_clauses = bool_query.get("must", []) + bool_query.get("should", [])
+    all_fields = {c["rank_feature"]["field"] for c in all_clauses}
+    assert "embedding_full_record.tiny" in all_fields
 
 
 # ---------------------------------------------------------------------------
