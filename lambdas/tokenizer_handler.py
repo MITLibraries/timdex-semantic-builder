@@ -67,7 +67,8 @@ def _build_opensearch_query(
     overridden per-call during tuning via the Lambda event payload.
     """
     if not query_tokens:
-        return {"query": {"bool": {}}}
+        # Avoid emitting an empty bool query, which would behave like a match_all.
+        return {"query": {"bool": {"must_not": [{"match_all": {}}]}}}
 
     max_weight = max(query_tokens.values())
 
@@ -135,13 +136,29 @@ def lambda_handler(event: dict, lambda_context: Context) -> dict:
     end = time.perf_counter()
     logger.debug("Tokenization and IDF weighting took: %.4f seconds", end - start)
 
-    # Read optional per-invocation threshold overrides for tuning.
-    # When absent the module-level constants (the settled defaults) are used.
-    must_boost_threshold = float(event.get("must_boost_threshold", MUST_BOOST_THRESHOLD))
-    drop_boost_threshold = float(event.get("drop_boost_threshold", DROP_BOOST_THRESHOLD))
-    short_query_max_tokens = int(
-        event.get("short_query_max_tokens", SHORT_QUERY_MAX_TOKENS)
-    )
+    # When absent or invalid, fall back to module-level defaults.
+    must_raw = event.get("must_boost_threshold", MUST_BOOST_THRESHOLD)
+    drop_raw = event.get("drop_boost_threshold", DROP_BOOST_THRESHOLD)
+    short_raw = event.get("short_query_max_tokens", SHORT_QUERY_MAX_TOKENS)
+    try:
+        must_boost_threshold = float(must_raw)
+    except TypeError, ValueError:
+        logger.warning("Invalid must_boost_threshold override: %r", must_raw)
+        must_boost_threshold = MUST_BOOST_THRESHOLD
+    try:
+        drop_boost_threshold = float(drop_raw)
+    except TypeError, ValueError:
+        logger.warning("Invalid drop_boost_threshold override: %r", drop_raw)
+        drop_boost_threshold = DROP_BOOST_THRESHOLD
+    try:
+        short_query_max_tokens = int(short_raw)
+    except TypeError, ValueError:
+        logger.warning("Invalid short_query_max_tokens override: %r", short_raw)
+        short_query_max_tokens = SHORT_QUERY_MAX_TOKENS
+    must_boost_threshold = max(0.0, min(1.0, must_boost_threshold))
+    drop_boost_threshold = max(0.0, min(1.0, drop_boost_threshold))
+    short_query_max_tokens = max(0, short_query_max_tokens)
+
     logger.debug(
         "Query thresholds — must: %.2f, drop: %.2f, short_query_max: %d",
         must_boost_threshold,
