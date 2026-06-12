@@ -197,18 +197,39 @@ def test_empty_tokens_returns_match_none_bool_query():
 
 
 def test_event_threshold_overrides_are_used(mock_query_tokenizer):
-    # Passing must_boost_threshold=1.0 means only exact-max tokens go to must.
-    # With two tokens at different weights, the lower one should land in should.
-    mock_query_tokenizer.tokenize_query.return_value = {"high": 10.0, "low": 5.0}
-    result = tokenizer_handler.lambda_handler(
+    # With high=10.0 and low=9.9, demonstrate that the same input produces different
+    # outputs based on must_boost_threshold:
+    # - Default (0.70): 9.9 >= 7.0 → low goes to must
+    # - Override (1.0): 9.9 < 10.0 → low goes to should
+    mock_query_tokenizer.tokenize_query.return_value = {"high": 10.0, "low": 9.9}
+
+    # First: with default threshold, low should be in must
+    result_default = tokenizer_handler.lambda_handler(
+        {"query": "high low"},
+        {},
+    )
+    bool_query_default = result_default["query"]["bool"]
+    expected_must_default = {
+        c["rank_feature"]["field"] for c in bool_query_default.get("must", [])
+    }
+    assert "embedding_full_record.high" in expected_must_default
+    assert "embedding_full_record.low" in expected_must_default
+    assert "should" not in bool_query_default
+
+    # Second: with override threshold=1.0, low should move to should
+    result_override = tokenizer_handler.lambda_handler(
         {"query": "high low", "must_boost_threshold": 1.0},
         {},
     )
-    bool_query = result["query"]["bool"]
-    must_fields = {c["rank_feature"]["field"] for c in bool_query.get("must", [])}
-    should_fields = {c["rank_feature"]["field"] for c in bool_query.get("should", [])}
-    assert "embedding_full_record.high" in must_fields
-    assert "embedding_full_record.low" in should_fields
+    bool_query_override = result_override["query"]["bool"]
+    expected_must_override = {
+        c["rank_feature"]["field"] for c in bool_query_override.get("must", [])
+    }
+    expected_should_override = {
+        c["rank_feature"]["field"] for c in bool_query_override.get("should", [])
+    }
+    assert "embedding_full_record.high" in expected_must_override
+    assert "embedding_full_record.low" in expected_should_override
 
 
 def test_event_drop_threshold_override_is_used(mock_query_tokenizer):
@@ -286,18 +307,38 @@ def test_invalid_short_query_max_tokens_falls_back_to_default(mock_query_tokeniz
 
 
 def test_must_boost_threshold_above_one_is_clamped_to_one(mock_query_tokenizer):
-    # 1.5 → clamped to 1.0; must_cutoff == max_weight so only the highest token
-    # meets the threshold and goes to must; the lower one lands in should.
-    mock_query_tokenizer.tokenize_query.return_value = {"high": 10.0, "low": 5.0}
-    result = tokenizer_handler.lambda_handler(
+    # With high=10.0 and low=9.9, demonstrate that the clamping changes behavior:
+    # - Default (0.70): 9.9 >= 7.0 → low goes to must
+    # - Clamped to 1.0 (pass 1.5): 9.9 < 10.0 → low goes to should
+    mock_query_tokenizer.tokenize_query.return_value = {"high": 10.0, "low": 9.9}
+
+    # First: with default threshold, low should be in must
+    result_default = tokenizer_handler.lambda_handler(
+        {"query": "high low"},
+        {},
+    )
+    bool_query_default = result_default["query"]["bool"]
+    expected_must_default = {
+        c["rank_feature"]["field"] for c in bool_query_default.get("must", [])
+    }
+    assert "embedding_full_record.high" in expected_must_default
+    assert "embedding_full_record.low" in expected_must_default
+    assert "should" not in bool_query_default
+
+    # Second: with clamped threshold (1.5 → 1.0), low should move to should
+    result_clamped = tokenizer_handler.lambda_handler(
         {"query": "high low", "must_boost_threshold": 1.5},
         {},
     )
-    bool_query = result["query"]["bool"]
-    must_fields = {c["rank_feature"]["field"] for c in bool_query.get("must", [])}
-    should_fields = {c["rank_feature"]["field"] for c in bool_query.get("should", [])}
-    assert "embedding_full_record.high" in must_fields
-    assert "embedding_full_record.low" in should_fields
+    bool_query_clamped = result_clamped["query"]["bool"]
+    expected_must_clamped = {
+        c["rank_feature"]["field"] for c in bool_query_clamped.get("must", [])
+    }
+    expected_should_clamped = {
+        c["rank_feature"]["field"] for c in bool_query_clamped.get("should", [])
+    }
+    assert "embedding_full_record.high" in expected_must_clamped
+    assert "embedding_full_record.low" in expected_should_clamped
 
 
 def test_must_boost_threshold_below_zero_is_clamped_to_zero(mock_query_tokenizer):
