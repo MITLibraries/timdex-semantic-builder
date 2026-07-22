@@ -1,11 +1,19 @@
 {
-  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "$schema": "https://renovatebot.com",
   "extends": [
     "local>MITLibraries/renovate-config"
   ],
   "constraintsFiltering": "strict",
-  "lockFileMaintenance": true,
+  "lockFileMaintenance": {
+    "enabled": false
+  },
   "packageRules": [
+    {
+      "matchManagers": [
+        "pep621"
+      ],
+      "rangeStrategy": "pin"
+    },
     {
       "matchPackageNames": [
         "python"
