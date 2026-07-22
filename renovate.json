@@ -30,6 +30,19 @@
       ],
       "groupName": "Python version upgrade",
       "groupSlug": "python-version-upgrade"
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "public.ecr.aws/lambda/python"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "groupName": "Python version upgrade",
+      "groupSlug": "python-version-upgrade"
     }
   ]
 }
