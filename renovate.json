@@ -3,46 +3,13 @@
   "extends": [
     "local>MITLibraries/renovate-config"
   ],
+  "constraintsFiltering": "strict",
   "packageRules": [
     {
-      "matchManagers": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "public.ecr.aws/lambda/python"
-      ],
-      "groupName": "Python version upgrade",
-      "groupSlug": "python-version-upgrade"
-    },
-    {
-      "matchManagers": [
-        "pyenv"
-      ],
-      "groupName": "Python version upgrade",
-      "groupSlug": "python-version-upgrade"
-    },
-    {
-      "matchManagers": [
-        "uv"
-      ],
       "matchPackageNames": [
         "python"
       ],
-      "groupName": "Python version upgrade",
-      "groupSlug": "python-version-upgrade"
-    },
-    {
-      "matchDatasources": [
-        "docker"
-      ],
-      "matchPackageNames": [
-        "public.ecr.aws/lambda/python"
-      ],
-      "matchUpdateTypes": [
-        "digest"
-      ],
-      "groupName": "Python version upgrade",
-      "groupSlug": "python-version-upgrade"
+      "allowedVersions": "<3.15"
     }
   ]
 }
