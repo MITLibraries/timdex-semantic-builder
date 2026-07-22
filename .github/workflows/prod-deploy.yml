@@ -26,7 +26,7 @@ permissions:
 jobs:
   deploy:
     name: Deploy
-    uses: mitlibraries/.github/.github/workflows/ecr-multi-arch-promote-prod.yml@main
+    uses: mitlibraries/.github/.github/workflows/ecr-multi-arch-promote-prod.yml@ed81322385810830d3b88f73557e6e1f35ce062a # main
     secrets: inherit
     with:
       AWS_REGION: "us-east-1"
@@ -52,7 +52,7 @@ jobs:
     steps:
 
       - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: aws-actions/configure-aws-credentials@e6de054238d6b7531b4efff3b6587d9aade6a06c # v6
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCT_PROD }}:role/${{ env.GHA_ROLE }}

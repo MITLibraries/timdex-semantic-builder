@@ -9,6 +9,6 @@ permissions: read-all
 
 jobs:
   test:
-    uses: mitlibraries/.github/.github/workflows/python-uv-shared-test.yml@main
+    uses: mitlibraries/.github/.github/workflows/python-uv-shared-test.yml@ed81322385810830d3b88f73557e6e1f35ce062a # main
   lint:
-    uses: mitlibraries/.github/.github/workflows/python-uv-shared-lint.yml@main
+    uses: mitlibraries/.github/.github/workflows/python-uv-shared-lint.yml@ed81322385810830d3b88f73557e6e1f35ce062a # main
