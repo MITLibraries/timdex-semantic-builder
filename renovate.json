@@ -2,5 +2,24 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>MITLibraries/renovate-config"
+  ],
+  "constraintsFiltering": "strict",
+  "lockFileMaintenance": false,
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "python"
+      ],
+      "allowedVersions": "<3.15"
+    },
+    {
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "public.ecr.aws/lambda/python"
+      ],
+      "allowedVersions": "<3.15"
+    }
   ]
 }
