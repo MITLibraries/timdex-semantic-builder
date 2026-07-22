@@ -4,7 +4,7 @@
     "local>MITLibraries/renovate-config"
   ],
   "constraintsFiltering": "strict",
-  "lockFileMaintenance": false,
+  "lockFileMaintenance": true,
   "packageRules": [
     {
       "matchPackageNames": [
