@@ -1,7 +1,7 @@
 # ---- Build stage ----
 FROM public.ecr.aws/lambda/python:3.14 AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:0.10.7 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.11.31@sha256:ecd4de2f060c64bea0ff8ecb182ddf46ba3fcccdc8a60cfdbaf20d1a047d7437 /uv /uvx /bin/
 
 COPY pyproject.toml uv.lock ${LAMBDA_TASK_ROOT}/
 
