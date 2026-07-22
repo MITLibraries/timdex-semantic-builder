@@ -2,5 +2,34 @@
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": [
     "local>MITLibraries/renovate-config"
+  ],
+  "packageRules": [
+    {
+      "matchManagers": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "public.ecr.aws/lambda/python"
+      ],
+      "groupName": "Python version upgrade",
+      "groupSlug": "python-version-upgrade"
+    },
+    {
+      "matchManagers": [
+        "pyenv"
+      ],
+      "groupName": "Python version upgrade",
+      "groupSlug": "python-version-upgrade"
+    },
+    {
+      "matchManagers": [
+        "uv"
+      ],
+      "matchPackageNames": [
+        "python"
+      ],
+      "groupName": "Python version upgrade",
+      "groupSlug": "python-version-upgrade"
+    }
   ]
 }
