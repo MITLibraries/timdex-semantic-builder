@@ -33,7 +33,7 @@ permissions:
 jobs:
   deploy:
     name: Dev Deploy
-    uses: mitlibraries/.github/.github/workflows/ecr-multi-arch-deploy-dev.yml@ed81322385810830d3b88f73557e6e1f35ce062a # main
+    uses: mitlibraries/.github/.github/workflows/ecr-multi-arch-deploy-dev.yml@3d2816ffa487f3e99b650103252e44552d277ef6 # main
     secrets: inherit
     with:
       AWS_REGION: "us-east-1"
